@@ -6288,3 +6288,91 @@ body.dark-mode .hero {
 .section.active > .page-dock {
   opacity: 1 !important;
 }
+
+/* =========================================================================
+   PATCH 3E · CORREÇÕES MOBILE/iOS SAFARI (camada final cirúrgica)
+   -------------------------------------------------------------------------
+   Bugs conhecidos do iOS Safari corrigidos aqui sem afetar desktop:
+   1. `background-attachment: fixed` causa render quebrado / tela branca
+      em iOS Safari · trocar para `scroll` no mobile.
+   2. `filter: blur(60px)` em elementos `position: fixed` cria carga GPU
+      excessiva em iPhone · reduzir intensidade no mobile.
+   3. Múltiplos `backdrop-filter` empilhados degradam performance · simplificar.
+   4. Prevenir double-tap zoom em controles interativos.
+   ========================================================================= */
+
+/* Telas até 980px — todos os tablets e mobile */
+@media (max-width: 980px) {
+  body {
+    background-attachment: scroll !important;
+  }
+  .app::before,
+  .app::after {
+    filter: blur(30px) !important;
+    opacity: 0.3 !important;
+  }
+}
+
+/* Mobile pequeno (≤720px) — reduzir backdrop-filter para performance */
+@media (max-width: 720px) {
+  .card,
+  .hero,
+  .sidebar-panel,
+  .topbar,
+  .trilha-pill,
+  .gps-section,
+  .gps-card,
+  .qrf-card,
+  .entry-card,
+  .btn.ghost,
+  .icon-btn,
+  .dock-link {
+    backdrop-filter: saturate(120%) blur(6px) !important;
+    -webkit-backdrop-filter: saturate(120%) blur(6px) !important;
+  }
+  .app::before { width: 200px !important; height: 200px !important; }
+  .app::after  { width: 180px !important; height: 180px !important; }
+}
+
+/* iOS Safari específico (suporte a -webkit-touch-callout) — extra-safe */
+@supports (-webkit-touch-callout: none) {
+  body {
+    background-attachment: scroll !important;
+    /* Evitar bounce-scroll branco no fundo */
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Em iOS, blur pesado em fixed quebra · simplificar */
+  .app::before,
+  .app::after {
+    filter: blur(40px) !important;
+  }
+  /* Prevenir double-tap zoom em botões/toggles */
+  button,
+  .gps-toggle,
+  .nav-link,
+  .qrf-filter,
+  .entry-card,
+  .quiz-options button,
+  .dock-link,
+  .btn {
+    touch-action: manipulation;
+  }
+  /* Inputs em iOS · evitar zoom automático ao focar (font-size ≥16px) */
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* iPhone com notch · suporte básico de safe-area sem alterar layout principal */
+@supports (padding: env(safe-area-inset-top)) {
+  @media (max-width: 720px) {
+    .topbar {
+      padding-top: max(10px, env(safe-area-inset-top)) !important;
+    }
+    .page-host {
+      padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
+    }
+  }
+}

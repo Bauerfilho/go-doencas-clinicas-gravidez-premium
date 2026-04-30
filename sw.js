@@ -20,7 +20,7 @@
 
 "use strict";
 
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const PROJECT_PREFIX = "go-doencas-clinicas-gravidez-premium-";
 const CACHE_NAME = PROJECT_PREFIX + CACHE_VERSION;
 
@@ -37,6 +37,7 @@ const SHELL_ASSETS = [
   "./sections-3.js",
   "./manifest.webmanifest",
   "./pwa-register.js",
+  "./assets/icons/apple-touch-icon-180.png",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
   "./assets/icons/maskable-192.png",
