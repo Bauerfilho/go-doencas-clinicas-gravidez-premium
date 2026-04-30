@@ -20,7 +20,7 @@
 
 "use strict";
 
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v5";
 const PROJECT_PREFIX = "go-doencas-clinicas-gravidez-premium-";
 const CACHE_NAME = PROJECT_PREFIX + CACHE_VERSION;
 

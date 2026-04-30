@@ -5799,7 +5799,7 @@ body[data-block="review"]      .app::after,
 body[data-block="intro"]       .app::after { background: radial-gradient(circle, var(--info-soft), transparent 70%); }
 
 /* Garantir que o conteúdo fique acima das luzes ambientes */
-.sidebar, .content-shell { position: relative; z-index: 1; }
+.content-shell { position: relative; z-index: 1; }
 
 /* =========================================================================
    3C.2 · TRANSIÇÃO SUAVE DE TEMA
@@ -6374,5 +6374,41 @@ body.dark-mode .hero {
     .page-host {
       padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
     }
+  }
+}
+
+
+/* =========================================================================
+   PATCH 3F · CORREÇÃO CRÍTICA · SIDEBAR DRAWER MOBILE
+   -------------------------------------------------------------------------
+   Bug: regra `.sidebar, .content-shell { position: relative }` que adicionei
+   no 3A (para z-index dos halos) sobrescrevia `position: fixed` do drawer
+   mobile, fazendo sidebar ocupar 100vh in-flow antes do conteúdo.
+   Sintomas reportados: "menu lateral" no lugar errado + "rolagem muito alta".
+   Corrigido removendo `.sidebar` daquela regra. Aqui apenas o reforço
+   defensivo: garantir que mobile mantenha drawer behavior.
+   ========================================================================= */
+@media (max-width: 980px) {
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    width: min(92vw, 360px) !important;
+    z-index: 30 !important;
+    transform: translateX(-108%);
+    transition: transform 280ms cubic-bezier(.22,.61,.36,1);
+  }
+  body[data-menu="open"] .sidebar {
+    transform: translateX(0) !important;
+  }
+  /* Garantir que content-shell ocupa toda a largura no mobile */
+  .content-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  /* App grid · 1 coluna no mobile · sem reservar espaço para sidebar */
+  .app {
+    grid-template-columns: 1fr !important;
   }
 }
