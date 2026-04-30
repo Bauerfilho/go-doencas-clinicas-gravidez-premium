@@ -1,0 +1,16 @@
+.DS_Store
+**/.DS_Store
+
+extract_recovery*
+extract_codex_session*
+RELATORIO.md
+AVISO.md
+
+*.sha256
+hashes-*.sha256
+
+resumo-inicial.txt
+resumo-final.txt
+arquivos-final.txt
+arvore-final.txt
+diff-*.txt
