@@ -28,11 +28,23 @@
     return;
   }
 
+  function resolveSWRegistrationPaths() {
+    var fallbackBase = location.pathname.endsWith("/")
+      ? location.pathname
+      : location.pathname.replace(/[^/]*$/, "");
+    var scriptSrc = document.currentScript && document.currentScript.src;
+    var baseURL = new URL("./", scriptSrc || (location.origin + fallbackBase));
+    var swURL = new URL("sw.js", baseURL);
+    var scopePath = baseURL.pathname.endsWith("/") ? baseURL.pathname : (baseURL.pathname + "/");
+    return { swURL: swURL, scopePath: scopePath };
+  }
+
   function register() {
+    var paths = resolveSWRegistrationPaths();
     navigator.serviceWorker
-      .register("./sw.js", { scope: "./" })
+      .register(paths.swURL.pathname, { scope: paths.scopePath })
       .then(function (reg) {
-        console.info("[GO PWA] service worker registrado · escopo:", reg.scope);
+        console.info("[GO PWA] service worker registrado · escopo:", reg.scope, "· SW:", paths.swURL.pathname);
 
         // Detecta atualização disponível (apenas log · não força reload)
         if (reg.waiting) {
