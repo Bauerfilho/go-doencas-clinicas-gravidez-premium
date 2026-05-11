@@ -34,10 +34,10 @@
 
   if (!currentScript) {
     var scripts = document.getElementsByTagName("script");
-    for (var i = scripts.length - 1; i >= 0; i--) {
-      var src = scripts[i].getAttribute("src") || "";
-      if (/\/?pwa-register\.js(\?.*)?$/.test(src)) {
-        currentScript = scripts[i];
+    for (var scriptIndex = scripts.length - 1; scriptIndex >= 0; scriptIndex--) {
+      var scriptSrc = scripts[scriptIndex].getAttribute("src") || "";
+      if (/\/?pwa-register\.js(\?.*)?$/.test(scriptSrc)) {
+        currentScript = scripts[scriptIndex];
         break;
       }
     }
