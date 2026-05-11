@@ -30,13 +30,16 @@
 
   var swUrl = "./sw.js";
   var swScope = "./";
+  var canRegisterSW = true;
   var currentScript = document.currentScript;
 
   if (!currentScript) {
     var scripts = document.getElementsByTagName("script");
+    // Fallback: varre do fim para o início porque este arquivo tende a ser o último script carregado.
     for (var scriptIndex = scripts.length - 1; scriptIndex >= 0; scriptIndex--) {
+      // Dependência intencional do nome do arquivo para localizar este registrador.
       var scriptSrc = scripts[scriptIndex].getAttribute("src") || "";
-      if (/\/?pwa-register\.js(\?.*)?$/.test(scriptSrc)) {
+      if (/(^|\/)pwa-register\.js(\?.*)?$/.test(scriptSrc)) {
         currentScript = scripts[scriptIndex];
         break;
       }
@@ -50,7 +53,10 @@
         swUrl = new URL("sw.js", baseUrl).href;
         swScope = baseUrl.pathname;
       } else {
-        console.warn("[GO PWA] origem do script difere da página, usando caminho padrão");
+        canRegisterSW = false;
+        console.warn(
+          "[GO PWA] origem do script (" + baseUrl.origin + ") difere da página (" + location.origin + "), registro bloqueado"
+        );
       }
     } catch (e) {
       console.warn("[GO PWA] falha ao resolver base do SW, usando caminho padrão:", e);
@@ -58,6 +64,10 @@
   }
 
   function register() {
+    if (!canRegisterSW) {
+      return;
+    }
+
     navigator.serviceWorker
       .register(swUrl, { scope: swScope })
       .then(function (reg) {
