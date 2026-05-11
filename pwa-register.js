@@ -9,6 +9,7 @@
 
 (function () {
   "use strict";
+  var REPO_BASE_PATH = "/Doenc-as-intercorrentes-na-gestac-ao/";
 
   if (!("serviceWorker" in navigator)) {
     console.info("[GO PWA] navigator.serviceWorker indisponível · registro pulado");
@@ -29,8 +30,14 @@
   }
 
   function register() {
+    var isGitHubPages = location.hostname === "bauerfilho.github.io";
+    var scopePath = (isGitHubPages || location.pathname.startsWith(REPO_BASE_PATH))
+      ? REPO_BASE_PATH
+      : "/";
+    var swUrl = scopePath + "sw.js";
+
     navigator.serviceWorker
-      .register("./sw.js", { scope: "./" })
+      .register(swUrl, { scope: scopePath })
       .then(function (reg) {
         console.info("[GO PWA] service worker registrado · escopo:", reg.scope);
 
