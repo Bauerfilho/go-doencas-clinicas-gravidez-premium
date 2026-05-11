@@ -97,7 +97,11 @@ function isSameOrigin(url) {
 }
 
 function isAppPath(url) {
-  return url.pathname === BASE_PATH.slice(0, -1) || url.pathname.startsWith(BASE_PATH);
+  return (
+    url.pathname === BASE_PATH ||
+    url.pathname === BASE_PATH.slice(0, -1) ||
+    url.pathname.startsWith(BASE_PATH)
+  );
 }
 
 function isStaticAssetRequest(request) {
@@ -106,8 +110,23 @@ function isStaticAssetRequest(request) {
 }
 
 function offlineFallbackResponse() {
+  const html = `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sem conexão</title>
+</head>
+<body>
+  <main>
+    <h1>Sem conexão</h1>
+    <p>Abra novamente quando a internet voltar.</p>
+  </main>
+</body>
+</html>`;
+
   return new Response(
-    "<!doctype html><html lang='pt-BR'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Sem conexão</title><body><main><h1>Sem conexão</h1><p>Abra novamente quando a internet voltar.</p></main></body></html>",
+    html,
     { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } }
   );
 }
@@ -125,6 +144,7 @@ self.addEventListener("fetch", (event) => {
   // Ignorar internals do navegador (chrome-extension, devtools etc.)
   const url = new URL(req.url);
   if (url.protocol !== "http:" && url.protocol !== "https:") return;
+  // Este SW controla apenas o app do GitHub Pages neste caminho.
   if (!isAppPath(url)) return;
 
   const accept = req.headers.get("accept") || "";
@@ -135,6 +155,8 @@ self.addEventListener("fetch", (event) => {
   } else if (isStaticAssetRequest(req)) {
     event.respondWith(cacheFirstWithUpdate(req));
   } else {
+    // Requisições same-origin não-estáticas (ex.: dados/eventuais endpoints).
+    // Estratégia simples: rede primeiro e, se cair, tentar cache existente.
     event.respondWith(fetch(req).catch(() => caches.match(req)));
   }
 });
@@ -158,11 +180,10 @@ async function networkFirstWithFallback(request) {
   }
 
   // Offline/erro · tentar cache exato, depois index.html
-  const cached = await cache.match(request, { ignoreSearch: true });
+  const cached = await cache.match(request);
   if (cached) return cached;
   const fallback = await cache.match(APP_SHELL_URL);
   if (fallback) return fallback;
-  if (fresh) return fresh;
   return offlineFallbackResponse();
 }
 
@@ -172,7 +193,7 @@ async function networkFirstWithFallback(request) {
    guarda. */
 async function cacheFirstWithUpdate(request) {
   const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request, { ignoreSearch: true });
+  const cached = await cache.match(request);
 
   if (cached) {
     // Mantém a revalidação em background sem bloquear (stale-while-revalidate)
@@ -192,7 +213,7 @@ async function cacheFirstWithUpdate(request) {
   }).catch(() => null);
 
   if (fresh) return fresh;
-  return new Response("", { status: 504, statusText: "Offline asset unavailable" });
+  return new Response("", { status: 504, statusText: "Recurso offline indisponível" });
 }
 
 /* MESSAGE · permite que páginas do mesmo origin solicitem ações específicas
