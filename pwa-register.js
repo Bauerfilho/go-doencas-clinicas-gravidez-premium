@@ -28,9 +28,27 @@
     return;
   }
 
+  var swUrl = "./sw.js";
+  var swScope = "./";
+  var currentScript =
+    document.currentScript ||
+    document.querySelector('script[src$="/pwa-register.js"], script[src^="./pwa-register.js"], script[src="pwa-register.js"]');
+
+  if (currentScript && currentScript.src) {
+    try {
+      var baseUrl = new URL("./", currentScript.src);
+      if (baseUrl.origin === location.origin) {
+        swUrl = new URL("sw.js", baseUrl).href;
+        swScope = baseUrl.pathname;
+      }
+    } catch (e) {
+      console.warn("[GO PWA] falha ao resolver base do SW, usando caminho padrão");
+    }
+  }
+
   function register() {
     navigator.serviceWorker
-      .register("./sw.js", { scope: "./" })
+      .register(swUrl, { scope: swScope })
       .then(function (reg) {
         console.info("[GO PWA] service worker registrado · escopo:", reg.scope);
 
