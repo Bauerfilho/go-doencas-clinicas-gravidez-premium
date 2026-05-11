@@ -126,7 +126,6 @@ self.addEventListener("fetch", (event) => {
 
   // Ignorar internals do navegador (chrome-extension, devtools etc.)
   const url = new URL(req.url);
-  url.hash = ""; // o fragmento é client-side; ignora para roteamento no SW
   if (url.protocol !== "http:" && url.protocol !== "https:") return;
 
   const accept = req.headers.get("accept") || "";
@@ -151,16 +150,19 @@ async function networkFirstWithFallback(request) {
     const fresh = await fetch(request);
     if (fresh && fresh.ok) {
       // Atualiza cache em background com URL normalizada (sem hash)
-      cache.put(cacheKey, fresh.clone()).catch(() => {});
+      cache.put(new Request(cacheKey), fresh.clone()).catch(() => {});
     }
     return fresh;
   } catch (e) {
-    // Offline · tentar cache exato (URL sem hash), depois index.html, depois raiz
+    // Offline · tentar cache exato (URL sem hash), depois index.html, depois raiz.
+    // "./" e "./index.html" são entradas distintas no pré-cache (SHELL_ASSETS);
+    // tentar ambas garante cobertura quando somente uma das duas foi cacheada.
     const cached = await cache.match(cacheKey);
     if (cached) return cached;
-    const fallback = await cache.match("./index.html")
-                  || await cache.match("./");
+    const fallback = await cache.match("./index.html");
     if (fallback) return fallback;
+    const root = await cache.match("./");
+    if (root) return root;
     return Response.error();
   }
 }
@@ -176,7 +178,7 @@ async function cacheFirstWithUpdate(request) {
 
   const networkPromise = fetch(request).then((resp) => {
     if (resp && resp.ok) {
-      cache.put(cacheKey, resp.clone()).catch(() => {});
+      cache.put(new Request(cacheKey), resp.clone()).catch(() => {});
     }
     return resp;
   }).catch(() => null);
