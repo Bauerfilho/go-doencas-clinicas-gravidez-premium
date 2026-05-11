@@ -20,29 +20,32 @@
 
 "use strict";
 
-const CACHE_VERSION = "v5";
+const CACHE_VERSION = "v6";
 const PROJECT_PREFIX = "go-doencas-clinicas-gravidez-premium-";
 const CACHE_NAME = PROJECT_PREFIX + CACHE_VERSION;
+const BASE_PATH = "/Doenc-as-intercorrentes-na-gestac-ao/";
+const APP_SHELL_URL = BASE_PATH + "index.html";
+const STATIC_ASSET_RE = /\.(?:css|js|mjs|png|svg|webp|jpg|jpeg|gif|ico|woff2?|ttf|map|json|webmanifest)$/i;
 
 /* App shell · arquivos essenciais para a plataforma rodar offline.
    O service worker fica na raiz, então caminhos são relativos a `./`. */
 const SHELL_ASSETS = [
-  "./",
-  "./index.html",
-  "./styles.css",
-  "./scripts.js",
-  "./content-data.js",
-  "./sections-1.js",
-  "./sections-2.js",
-  "./sections-3.js",
-  "./manifest.webmanifest",
-  "./pwa-register.js",
-  "./assets/icons/apple-touch-icon-180.png",
-  "./assets/icons/icon-192.png",
-  "./assets/icons/icon-512.png",
-  "./assets/icons/maskable-192.png",
-  "./assets/icons/maskable-512.png",
-  "./assets/icons/favicon.svg"
+  BASE_PATH,
+  APP_SHELL_URL,
+  BASE_PATH + "styles.css",
+  BASE_PATH + "scripts.js",
+  BASE_PATH + "content-data.js",
+  BASE_PATH + "sections-1.js",
+  BASE_PATH + "sections-2.js",
+  BASE_PATH + "sections-3.js",
+  BASE_PATH + "manifest.webmanifest",
+  BASE_PATH + "pwa-register.js",
+  BASE_PATH + "assets/icons/apple-touch-icon-180.png",
+  BASE_PATH + "assets/icons/icon-192.png",
+  BASE_PATH + "assets/icons/icon-512.png",
+  BASE_PATH + "assets/icons/maskable-192.png",
+  BASE_PATH + "assets/icons/maskable-512.png",
+  BASE_PATH + "assets/icons/favicon.svg"
 ];
 
 /* INSTALL · pré-cache em best-effort. Cada asset é tentado individualmente
@@ -93,6 +96,22 @@ function isSameOrigin(url) {
   catch { return false; }
 }
 
+function isAppPath(url) {
+  return url.pathname === BASE_PATH.slice(0, -1) || url.pathname.startsWith(BASE_PATH);
+}
+
+function isStaticAssetRequest(request) {
+  const url = new URL(request.url);
+  return STATIC_ASSET_RE.test(url.pathname);
+}
+
+function offlineFallbackResponse() {
+  return new Response(
+    "<!doctype html><html lang='pt-BR'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Sem conexão</title><body><main><h1>Sem conexão</h1><p>Abra novamente quando a internet voltar.</p></main></body></html>",
+    { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } }
+  );
+}
+
 /* FETCH · roteamento por tipo
    1. Apenas GET é cacheado.
    2. Cross-origin segue rede direto (sem cache).
@@ -106,14 +125,17 @@ self.addEventListener("fetch", (event) => {
   // Ignorar internals do navegador (chrome-extension, devtools etc.)
   const url = new URL(req.url);
   if (url.protocol !== "http:" && url.protocol !== "https:") return;
+  if (!isAppPath(url)) return;
 
   const accept = req.headers.get("accept") || "";
   const isNavigation = req.mode === "navigate" || accept.includes("text/html");
 
   if (isNavigation) {
     event.respondWith(networkFirstWithFallback(req));
-  } else {
+  } else if (isStaticAssetRequest(req)) {
     event.respondWith(cacheFirstWithUpdate(req));
+  } else {
+    event.respondWith(fetch(req).catch(() => caches.match(req)));
   }
 });
 
@@ -123,21 +145,25 @@ self.addEventListener("fetch", (event) => {
    funcionando). */
 async function networkFirstWithFallback(request) {
   const cache = await caches.open(CACHE_NAME);
+  let fresh = null;
   try {
-    const fresh = await fetch(request);
+    fresh = await fetch(request);
     if (fresh && fresh.ok) {
       // Atualiza cache em background
       cache.put(request, fresh.clone()).catch(() => {});
+      return fresh;
     }
-    return fresh;
   } catch (e) {
-    // Offline · tentar cache exato, depois index.html
-    const cached = await cache.match(request);
-    if (cached) return cached;
-    const fallback = await cache.match("./index.html");
-    if (fallback) return fallback;
-    return Response.error();
+    // cai no fallback seguro abaixo
   }
+
+  // Offline/erro · tentar cache exato, depois index.html
+  const cached = await cache.match(request, { ignoreSearch: true });
+  if (cached) return cached;
+  const fallback = await cache.match(APP_SHELL_URL);
+  if (fallback) return fallback;
+  if (fresh) return fresh;
+  return offlineFallbackResponse();
 }
 
 /* Estratégia · CACHE-FIRST com revalidação para assets estáticos.
@@ -146,23 +172,27 @@ async function networkFirstWithFallback(request) {
    guarda. */
 async function cacheFirstWithUpdate(request) {
   const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
+  const cached = await cache.match(request, { ignoreSearch: true });
 
-  const networkPromise = fetch(request).then((resp) => {
+  if (cached) {
+    // Mantém a revalidação em background sem bloquear (stale-while-revalidate)
+    fetch(request).then((resp) => {
+      if (resp && resp.ok) {
+        cache.put(request, resp.clone()).catch(() => {});
+      }
+    }).catch(() => {});
+    return cached;
+  }
+
+  const fresh = await fetch(request).then((resp) => {
     if (resp && resp.ok) {
       cache.put(request, resp.clone()).catch(() => {});
     }
     return resp;
   }).catch(() => null);
 
-  if (cached) {
-    // Mantém a revalidação em background sem bloquear
-    networkPromise.catch(() => {});
-    return cached;
-  }
-  const fresh = await networkPromise;
   if (fresh) return fresh;
-  return Response.error();
+  return new Response("", { status: 504, statusText: "Offline asset unavailable" });
 }
 
 /* MESSAGE · permite que páginas do mesmo origin solicitem ações específicas
