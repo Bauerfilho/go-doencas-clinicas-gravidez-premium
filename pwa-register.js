@@ -33,16 +33,17 @@
   }
 
   function resolveSWRegistrationPaths() {
-    var fallbackBaseRaw = location.pathname.endsWith("/")
-      ? location.pathname
-      : location.pathname.replace(/[^/]*$/, "");
-    var fallbackBase = ensureTrailingSlash(fallbackBaseRaw || "/");
+    var pathname = location.pathname;
+    var fallbackBase = pathname.endsWith("/")
+      ? pathname
+      : pathname.substring(0, pathname.lastIndexOf("/") + 1);
+    fallbackBase = ensureTrailingSlash(fallbackBase);
     var scriptSrc = document.currentScript && document.currentScript.src;
     var baseURL = scriptSrc
       ? new URL("./", scriptSrc)
       : new URL(fallbackBase, location.origin);
     var swURL = new URL("sw.js", baseURL);
-    var scopeURL = new URL(ensureTrailingSlash(baseURL.pathname), location.origin);
+    var scopeURL = new URL("./", baseURL);
     return { swURL: swURL, scopeURL: scopeURL };
   }
 
