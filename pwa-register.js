@@ -30,9 +30,18 @@
 
   var swUrl = "./sw.js";
   var swScope = "./";
-  var currentScript =
-    document.currentScript ||
-    document.querySelector('script[src$="/pwa-register.js"], script[src^="./pwa-register.js"], script[src="pwa-register.js"]');
+  var currentScript = document.currentScript;
+
+  if (!currentScript) {
+    var scripts = document.getElementsByTagName("script");
+    for (var i = scripts.length - 1; i >= 0; i--) {
+      var src = scripts[i].getAttribute("src") || "";
+      if (/\/?pwa-register\.js(\?.*)?$/.test(src)) {
+        currentScript = scripts[i];
+        break;
+      }
+    }
+  }
 
   if (currentScript && currentScript.src) {
     try {
@@ -40,9 +49,11 @@
       if (baseUrl.origin === location.origin) {
         swUrl = new URL("sw.js", baseUrl).href;
         swScope = baseUrl.pathname;
+      } else {
+        console.warn("[GO PWA] origem do script difere da página, usando caminho padrão");
       }
     } catch (e) {
-      console.warn("[GO PWA] falha ao resolver base do SW, usando caminho padrão");
+      console.warn("[GO PWA] falha ao resolver base do SW, usando caminho padrão:", e);
     }
   }
 
