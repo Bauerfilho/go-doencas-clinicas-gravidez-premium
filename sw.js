@@ -32,7 +32,7 @@ const INDEX_FALLBACK = BASE_PATH + "index.html";
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       SHELL_ASSETS.map(async (assetUrl) => {
         const response = await fetch(assetUrl, { cache: "reload" });
         if (!response.ok) {
@@ -41,6 +41,11 @@ self.addEventListener("install", (event) => {
         await cache.put(assetUrl, response.clone());
       })
     );
+    results.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.warn("[GO SW] falha no pré-cache:", SHELL_ASSETS[index], result.reason);
+      }
+    });
     await self.skipWaiting();
   })());
 });

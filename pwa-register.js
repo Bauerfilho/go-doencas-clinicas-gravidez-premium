@@ -30,7 +30,7 @@
   }
 
   function register() {
-    var isGitHubPages = location.hostname === "bauerfilho.github.io";
+    var isGitHubPages = location.hostname.endsWith(".github.io");
     var scopePath = (isGitHubPages || location.pathname.startsWith(REPO_BASE_PATH))
       ? REPO_BASE_PATH
       : "/";
