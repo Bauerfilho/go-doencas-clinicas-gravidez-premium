@@ -28,23 +28,30 @@
     return;
   }
 
+  function ensureTrailingSlash(path) {
+    return path.endsWith("/") ? path : (path + "/");
+  }
+
   function resolveSWRegistrationPaths() {
-    var fallbackBase = location.pathname.endsWith("/")
+    var fallbackBaseRaw = location.pathname.endsWith("/")
       ? location.pathname
       : location.pathname.replace(/[^/]*$/, "");
+    var fallbackBase = ensureTrailingSlash(fallbackBaseRaw || "/");
     var scriptSrc = document.currentScript && document.currentScript.src;
-    var baseURL = new URL("./", scriptSrc || (location.origin + fallbackBase));
+    var baseURL = scriptSrc
+      ? new URL("./", scriptSrc)
+      : new URL(fallbackBase, location.origin);
     var swURL = new URL("sw.js", baseURL);
-    var scopePath = baseURL.pathname.endsWith("/") ? baseURL.pathname : (baseURL.pathname + "/");
-    return { swURL: swURL, scopePath: scopePath };
+    var scopeURL = new URL(ensureTrailingSlash(baseURL.pathname), location.origin);
+    return { swURL: swURL, scopeURL: scopeURL };
   }
 
   function register() {
     var paths = resolveSWRegistrationPaths();
     navigator.serviceWorker
-      .register(paths.swURL.pathname, { scope: paths.scopePath })
+      .register(paths.swURL.href, { scope: paths.scopeURL.href })
       .then(function (reg) {
-        console.info("[GO PWA] service worker registrado · escopo:", reg.scope, "· SW:", paths.swURL.pathname);
+        console.info("[GO PWA] service worker registrado · escopo:", reg.scope, "· SW:", paths.swURL.href);
 
         // Detecta atualização disponível (apenas log · não força reload)
         if (reg.waiting) {
