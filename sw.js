@@ -12,6 +12,14 @@
                com fallback para rede e atualização do cache.
                Recursos cross-origin não são cacheados (apenas repassados).
 
+   Compatibilidade SPA/hash router:
+   · A plataforma usa rotas do tipo index.html#id-da-página.
+   · O fragmento (#) é client-side e nunca chega à rede/SW, mas todas as
+     operações de cache usam URLs sem hash (urlWithoutHash) para evitar
+     entradas duplicadas em implementações não-standard.
+   · O fallback de navegação sempre devolve ./index.html para que o router
+     por hash continue funcionando offline.
+
    Como atualizar:
    · Quando alterar qualquer arquivo da plataforma, incremente CACHE_VERSION.
      A próxima visita do usuário ativa o novo SW e descarta o cache antigo.
@@ -20,7 +28,7 @@
 
 "use strict";
 
-const CACHE_VERSION = "v5";
+const CACHE_VERSION = "v6";
 const PROJECT_PREFIX = "go-doencas-clinicas-gravidez-premium-";
 const CACHE_NAME = PROJECT_PREFIX + CACHE_VERSION;
 
@@ -93,6 +101,19 @@ function isSameOrigin(url) {
   catch { return false; }
 }
 
+/* Util · remove o fragmento (#hash) da URL.
+   O hash é client-side e não é enviado à rede nem ao SW em implementações
+   padrão, mas normalizamos explicitamente para garantir que o mesmo recurso
+   não gere entradas de cache duplicadas caso alguma implementação inclua o
+   fragmento na URL do request. */
+function urlWithoutHash(url) {
+  try {
+    const u = new URL(url);
+    u.hash = "";
+    return u.href;
+  } catch { return url; }
+}
+
 /* FETCH · roteamento por tipo
    1. Apenas GET é cacheado.
    2. Cross-origin segue rede direto (sem cache).
@@ -105,6 +126,7 @@ self.addEventListener("fetch", (event) => {
 
   // Ignorar internals do navegador (chrome-extension, devtools etc.)
   const url = new URL(req.url);
+  url.hash = ""; // o fragmento é client-side; ignora para roteamento no SW
   if (url.protocol !== "http:" && url.protocol !== "https:") return;
 
   const accept = req.headers.get("accept") || "";
@@ -120,21 +142,24 @@ self.addEventListener("fetch", (event) => {
 /* Estratégia · NETWORK-FIRST para HTML.
    Tenta rede; se falhar (offline), serve do cache; se não tiver cached
    para a URL exata, devolve `./index.html` (router por hash continua
-   funcionando). */
+   funcionando). A chave de cache usa a URL sem fragmento para que
+   index.html#qualquer-secao não gere entradas separadas. */
 async function networkFirstWithFallback(request) {
   const cache = await caches.open(CACHE_NAME);
+  const cacheKey = urlWithoutHash(request.url);
   try {
     const fresh = await fetch(request);
     if (fresh && fresh.ok) {
-      // Atualiza cache em background
-      cache.put(request, fresh.clone()).catch(() => {});
+      // Atualiza cache em background com URL normalizada (sem hash)
+      cache.put(cacheKey, fresh.clone()).catch(() => {});
     }
     return fresh;
   } catch (e) {
-    // Offline · tentar cache exato, depois index.html
-    const cached = await cache.match(request);
+    // Offline · tentar cache exato (URL sem hash), depois index.html, depois raiz
+    const cached = await cache.match(cacheKey);
     if (cached) return cached;
-    const fallback = await cache.match("./index.html");
+    const fallback = await cache.match("./index.html")
+                  || await cache.match("./");
     if (fallback) return fallback;
     return Response.error();
   }
@@ -143,14 +168,15 @@ async function networkFirstWithFallback(request) {
 /* Estratégia · CACHE-FIRST com revalidação para assets estáticos.
    Devolve do cache imediatamente se houver, e atualiza em background
    (stale-while-revalidate). Se não estiver em cache, busca na rede e
-   guarda. */
+   guarda. A chave de cache usa a URL sem fragmento (normalizada). */
 async function cacheFirstWithUpdate(request) {
   const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
+  const cacheKey = urlWithoutHash(request.url);
+  const cached = await cache.match(cacheKey);
 
   const networkPromise = fetch(request).then((resp) => {
     if (resp && resp.ok) {
-      cache.put(request, resp.clone()).catch(() => {});
+      cache.put(cacheKey, resp.clone()).catch(() => {});
     }
     return resp;
   }).catch(() => null);

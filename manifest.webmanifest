@@ -3,6 +3,7 @@
   "short_name": "GO Premium",
   "description": "Plataforma interativa de ginecologia e obstetrícia para estudo de doenças clínicas na gravidez: hipertensão e pré-eclâmpsia, hiperêmese, diabetes, gemelaridade e simulador integrado de prova.",
   "lang": "pt-BR",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
