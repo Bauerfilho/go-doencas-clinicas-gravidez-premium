@@ -28,16 +28,12 @@
     return;
   }
 
-  function ensureTrailingSlash(path) {
-    return path.endsWith("/") ? path : (path + "/");
-  }
-
   function resolveSWRegistrationPaths() {
     var pathname = location.pathname;
     var fallbackBase = pathname.endsWith("/")
       ? pathname
       : pathname.substring(0, pathname.lastIndexOf("/") + 1);
-    fallbackBase = ensureTrailingSlash(fallbackBase);
+    // document.currentScript pode ser null em alguns contextos; nesse caso usamos o pathname.
     var scriptSrc = document.currentScript && document.currentScript.src;
     var baseURL = scriptSrc
       ? new URL("./", scriptSrc)
